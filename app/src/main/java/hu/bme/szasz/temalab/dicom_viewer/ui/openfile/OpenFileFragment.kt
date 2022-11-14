@@ -33,8 +33,8 @@ class OpenFileFragment : Fragment() {
 
             putExtra(DocumentsContract.EXTRA_INITIAL_URI, "")
         }
-        //val mimetypes = arrayOf("application/dicom", "application/zip")
-        //intent.putExtra(Intent.EXTRA_MIME_TYPES,mimetypes)
+        val mimetypes = arrayOf("application/dicom", "application/zip")
+        intent.putExtra(Intent.EXTRA_MIME_TYPES,mimetypes)
         resultLauncher.launch(intent)
 
         return binding.root
