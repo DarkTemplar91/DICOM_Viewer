@@ -1,17 +1,16 @@
 package hu.bme.szasz.temalab.dicom_viewer.ui.home
 
-
 import android.app.AlertDialog
 import android.content.DialogInterface
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
+import android.view.ScaleGestureDetector.SimpleOnScaleGestureListener
 import android.widget.ImageView
 import androidx.fragment.app.Fragment
 import com.imebra.*
+import hu.bme.szasz.temalab.dicom_viewer.RotationGestureDetector
 import hu.bme.szasz.temalab.dicom_viewer.databinding.FragmentHomeBinding
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -20,10 +19,14 @@ import java.io.InputStream
 import java.nio.ByteBuffer
 
 
-class HomeFragment : Fragment() {
+class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListener{
 
     private var _binding: FragmentHomeBinding? = null
     private var imageView: ImageView? = null
+
+    private lateinit var scaleGestureDetector: ScaleGestureDetector
+    private lateinit var rotationDetector: RotationGestureDetector
+    private var scaleFactor = 1.0
 
     private val binding get() = _binding!!
 
@@ -35,14 +38,34 @@ class HomeFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
+        scaleGestureDetector = ScaleGestureDetector(binding.root.context, ScaleListener())
+        rotationDetector = RotationGestureDetector(this)
 
         System.loadLibrary("imebra_lib")
 
         imageView = binding.imageView
         dicomPath = arguments?.getString("uri")
 
+        binding.root.setOnTouchListener { p0, p1 ->
+            scaleGestureDetector.onTouchEvent(p1)
+            rotationDetector.onTouchEvent(p1)
+            true
+        }
+
+        binding.orientateButton.setOnTouchListener { p0, p1 ->
+            imageView?.rotation = 0.0f
+            true
+        }
+        binding.sizeButton.setOnTouchListener{p0,p1->
+            imageView?.scaleX = 1.0f
+            imageView?.scaleY = 1.0f
+            scaleFactor = 1.0
+            true
+        }
+
+
         if(dicomPath == null){
-            //TODO: Handle
+            //TODO: Give feedback
         }
         else{
             loadDicomImage()
@@ -103,7 +126,7 @@ class HomeFragment : Fragment() {
             val loadDataSet = CodecFactory.load(StreamReader(imebraPipe.streamInput))
             val dicomImage: Image = loadDataSet.getImageApplyModalityTransform(0)
 
-            var chain = TransformsChain()
+            val chain = TransformsChain()
 
             if (ColorTransformsFactory.isMonochrome(dicomImage.colorSpace)) {
                 val voilut = VOILUT(
@@ -145,4 +168,19 @@ class HomeFragment : Fragment() {
             dlgAlert.create().show()
         }
     }
+
+    private inner class ScaleListener : SimpleOnScaleGestureListener() {
+        override fun onScale(scaleGestureDetector: ScaleGestureDetector): Boolean {
+            scaleFactor *= scaleGestureDetector.scaleFactor
+            imageView?.scaleX = scaleFactor.toFloat()
+            imageView?.scaleY = scaleFactor.toFloat()
+            return true
+        }
+    }
+
+    override fun onRotation(rotationDetector: RotationGestureDetector?) {
+        val angle = rotationDetector?.angle
+        imageView?.rotation=angle!!
+    }
+
 }

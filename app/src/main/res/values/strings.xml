@@ -13,4 +13,7 @@
     <string name="open_file">Open File…</string>
 
     <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="original_size">Original size</string>
+    <string name="re_orientate">Re-orientate</string>
+    <string name="dicom_image">DICOM Image</string>
 </resources>
