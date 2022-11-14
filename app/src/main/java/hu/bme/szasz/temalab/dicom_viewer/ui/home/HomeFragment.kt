@@ -9,10 +9,7 @@ import android.os.Bundle
 import android.view.*
 import android.view.ScaleGestureDetector.SimpleOnScaleGestureListener
 import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.RelativeLayout
 import androidx.fragment.app.Fragment
-import androidx.recyclerview.widget.RecyclerView
 import com.imebra.*
 import hu.bme.szasz.temalab.dicom_viewer.RotationGestureDetector
 import hu.bme.szasz.temalab.dicom_viewer.databinding.FragmentHomeBinding
@@ -69,35 +66,34 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
             true
         }
         //TODO: Figure out a way so it works with the other gestures as well
-/*
+
         binding.imageView.setOnTouchListener(object: View.OnTouchListener{
             var downPoint = PointF()
             var startPoint = PointF()
 
             override fun onTouch(p0: View?, p1: MotionEvent?): Boolean {
-                if(scaleGestureDetector.isInProgress == false) {
-                    when (p1?.action) {
-                        MotionEvent.ACTION_MOVE -> {
-                            imageView?.x = startPoint.x + p1.x - downPoint.x
-                            imageView?.y = startPoint.y + p1.y - downPoint.y
-                            startPoint.x = imageView?.x!!
-                            startPoint.y = imageView?.y!!
-                        }
-                        MotionEvent.ACTION_DOWN -> {
-                            downPoint.set(p1.x, p1.y)
-                            startPoint.set(imageView?.x!!, imageView?.y!!)
-                        }
-                        MotionEvent.ACTION_UP -> {
 
-                        }
+                when (p1?.action) {
+                    MotionEvent.ACTION_MOVE -> {
+                        imageView?.x = startPoint.x + p1.x - downPoint.x
+                        imageView?.y = startPoint.y + p1.y - downPoint.y
+                        startPoint.x = imageView?.x!!
+                        startPoint.y = imageView?.y!!
 
                     }
+                    MotionEvent.ACTION_DOWN -> {
+                        downPoint.set(p1.x, p1.y)
+                        startPoint.set(imageView?.x!!, imageView?.y!!)
+                    }
+                    MotionEvent.ACTION_UP->{
+                    }
+
                 }
-                return true
+                return false
             }
 
         })
-*/
+
 
 
         if(dicomPath == null){
