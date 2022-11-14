@@ -1,14 +1,18 @@
 package hu.bme.szasz.temalab.dicom_viewer.ui.home
 
+import android.annotation.SuppressLint
 import android.app.AlertDialog
-import android.content.DialogInterface
 import android.graphics.Bitmap
+import android.graphics.PointF
 import android.net.Uri
 import android.os.Bundle
 import android.view.*
 import android.view.ScaleGestureDetector.SimpleOnScaleGestureListener
 import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.RelativeLayout
 import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.RecyclerView
 import com.imebra.*
 import hu.bme.szasz.temalab.dicom_viewer.RotationGestureDetector
 import hu.bme.szasz.temalab.dicom_viewer.databinding.FragmentHomeBinding
@@ -32,6 +36,7 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
 
     private var dicomPath : String? = null
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -41,27 +46,58 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
         scaleGestureDetector = ScaleGestureDetector(binding.root.context, ScaleListener())
         rotationDetector = RotationGestureDetector(this)
 
+
         System.loadLibrary("imebra_lib")
 
         imageView = binding.imageView
         dicomPath = arguments?.getString("uri")
 
-        binding.root.setOnTouchListener { p0, p1 ->
-            scaleGestureDetector.onTouchEvent(p1)
-            rotationDetector.onTouchEvent(p1)
-            true
+       binding.root.setOnTouchListener { _, p1 ->
+           scaleGestureDetector.onTouchEvent(p1)
+           rotationDetector.onTouchEvent(p1)
+           true
         }
 
-        binding.orientateButton.setOnTouchListener { p0, p1 ->
+        binding.orientateButton.setOnTouchListener { _, _ ->
             imageView?.rotation = 0.0f
             true
         }
-        binding.sizeButton.setOnTouchListener{p0,p1->
+        binding.sizeButton.setOnTouchListener{ _, _ ->
             imageView?.scaleX = 1.0f
             imageView?.scaleY = 1.0f
             scaleFactor = 1.0
             true
         }
+        //TODO: Figure out a way so it works with the other gestures as well
+/*
+        binding.imageView.setOnTouchListener(object: View.OnTouchListener{
+            var downPoint = PointF()
+            var startPoint = PointF()
+
+            override fun onTouch(p0: View?, p1: MotionEvent?): Boolean {
+                if(scaleGestureDetector.isInProgress == false) {
+                    when (p1?.action) {
+                        MotionEvent.ACTION_MOVE -> {
+                            imageView?.x = startPoint.x + p1.x - downPoint.x
+                            imageView?.y = startPoint.y + p1.y - downPoint.y
+                            startPoint.x = imageView?.x!!
+                            startPoint.y = imageView?.y!!
+                        }
+                        MotionEvent.ACTION_DOWN -> {
+                            downPoint.set(p1.x, p1.y)
+                            startPoint.set(imageView?.x!!, imageView?.y!!)
+                        }
+                        MotionEvent.ACTION_UP -> {
+
+                        }
+
+                    }
+                }
+                return true
+            }
+
+        })
+*/
 
 
         if(dicomPath == null){
@@ -82,7 +118,7 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
     }
 
 
-    fun loadDicomImage(){
+    private fun loadDicomImage(){
 
         try {
 
@@ -160,10 +196,10 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
             val dlgAlert: AlertDialog.Builder = AlertDialog.Builder(binding.root.context)
             dlgAlert.setMessage(e.message)
             dlgAlert.setTitle("Error")
-            dlgAlert.setPositiveButton("OK",
-                DialogInterface.OnClickListener { _, _ ->
-                    //dismiss the dialog
-                })
+            dlgAlert.setPositiveButton("OK"
+            ) { _, _ ->
+                //dismiss the dialog
+            }
             dlgAlert.setCancelable(true)
             dlgAlert.create().show()
         }
