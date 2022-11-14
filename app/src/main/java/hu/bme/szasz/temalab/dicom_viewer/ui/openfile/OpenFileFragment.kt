@@ -53,6 +53,9 @@ class OpenFileFragment : Fragment() {
 
             findNavController().navigate(R.id.action_nav_open_file_to_nav_home,bundle)
         }
+        else{
+            findNavController().navigate(R.id.action_nav_open_file_to_nav_home)
+        }
     }
 
 }
