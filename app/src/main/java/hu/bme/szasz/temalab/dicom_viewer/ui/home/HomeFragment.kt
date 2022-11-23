@@ -11,6 +11,7 @@ import android.view.ScaleGestureDetector.SimpleOnScaleGestureListener
 import android.widget.ImageView
 import androidx.fragment.app.Fragment
 import com.imebra.*
+import hu.bme.szasz.temalab.dicom_viewer.R
 import hu.bme.szasz.temalab.dicom_viewer.RotationGestureDetector
 import hu.bme.szasz.temalab.dicom_viewer.databinding.FragmentHomeBinding
 import kotlinx.coroutines.GlobalScope
@@ -30,8 +31,13 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
     private var scaleFactor = 1.0
 
     private val binding get() = _binding!!
-
     private var dicomPath : String? = null
+    private var actionTypeIsDrag = true
+
+    private var imageX : Float = 0.0f
+    private var imageY : Float = 0.0f
+
+
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreateView(
@@ -42,7 +48,6 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
         scaleGestureDetector = ScaleGestureDetector(binding.root.context, ScaleListener())
         rotationDetector = RotationGestureDetector(this)
-
 
         System.loadLibrary("imebra_lib")
 
@@ -55,17 +60,30 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
            true
         }
 
-        binding.orientateButton.setOnTouchListener { _, _ ->
+        binding.orientateButton.setOnClickListener {
             imageView?.rotation = 0.0f
-            true
         }
-        binding.sizeButton.setOnTouchListener{ _, _ ->
+        binding.sizeButton.setOnClickListener{
             imageView?.scaleX = 1.0f
             imageView?.scaleY = 1.0f
             scaleFactor = 1.0
+        }
+        binding.centerButton.setOnClickListener {
+            imageView?.x= imageX
+            imageView?.y = imageY
+        }
+
+        binding.navigation.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.dragButton -> {
+                    actionTypeIsDrag = true
+                }
+                R.id.rotateButton -> {
+                    actionTypeIsDrag = false
+                }
+            }
             true
         }
-        //TODO: Figure out a way so it works with the other gestures as well
 
         binding.imageView.setOnTouchListener(object: View.OnTouchListener{
             var downPoint = PointF()
@@ -89,7 +107,7 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
                     }
 
                 }
-                return false
+                return actionTypeIsDrag
             }
 
         })
@@ -187,6 +205,9 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
 
             imageView?.setImageBitmap(renderBitmap)
             imageView?.scaleType = ImageView.ScaleType.FIT_CENTER
+
+            imageX = imageView?.x!!
+            imageX = imageView?.x!!
         }
         catch (e: IOException){
             val dlgAlert: AlertDialog.Builder = AlertDialog.Builder(binding.root.context)

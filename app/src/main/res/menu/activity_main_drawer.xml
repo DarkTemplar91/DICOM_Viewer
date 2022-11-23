@@ -12,7 +12,25 @@
             android:id="@+id/nav_open_file"
             android:icon="@drawable/ic_menu_slideshow"
             android:title="@string/open_file">
-
+        </item>
+        <item
+            android:id="@+id/nav_open_folder"
+            android:icon="@drawable/ic_open_folder"
+            android:title="@string/open_folder">
         </item>
     </group>
+
+
+    <item
+        android:title="@string/recently_opened">
+
+        <menu>
+            <item android:title="TODO">
+
+            </item>
+        </menu>
+
+    </item>
+
+
 </menu>
