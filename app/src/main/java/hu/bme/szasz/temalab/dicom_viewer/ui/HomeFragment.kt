@@ -20,6 +20,7 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.navigation.NavigationView
 import com.google.android.material.slider.Slider
 import com.imebra.*
+import com.imebra.VOILUT.getOptimalVOI
 import hu.bme.szasz.temalab.dicom_viewer.R
 import hu.bme.szasz.temalab.dicom_viewer.RotationGestureDetector
 import hu.bme.szasz.temalab.dicom_viewer.databinding.FragmentHomeBinding
@@ -27,7 +28,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.BufferedInputStream
 import java.io.IOException
 import java.io.InputStream
 import java.nio.ByteBuffer
@@ -287,18 +287,15 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
 
     }
 
-
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
     }
 
-
     private fun loadDicomImage(dicomPath: Uri) {
 
-
         //DICOM tag, study description.
-        //Used for differentiating between images
+        //Used for grouping images
         val tagId = TagId(8, 4158)
 
         try {
@@ -351,16 +348,30 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
             val chain = TransformsChain()
 
             if (ColorTransformsFactory.isMonochrome(dicomImage.colorSpace)) {
-                val voilut = VOILUT(
-                    VOILUT.getOptimalVOI(
-                        dicomImage,
-                        0,
-                        0,
-                        dicomImage.width,
-                        dicomImage.height
-                    )
-                )
-                chain.addTransform(voilut)
+                var voilutTransform: VOILUT? = null
+                val vois = loadDataSet.voIs
+                val luts = ArrayList<LUT>()
+
+                var scanLUTs: Long = 0
+                while(true){
+                    try{
+                        luts.add(loadDataSet.getLUT(TagId(0x0028, 0x3010), scanLUTs))
+                        scanLUTs++
+                    }
+                    catch (e: Exception){
+                        break;
+                    }
+                }
+
+                voilutTransform = if (!vois.isEmpty) {
+                    VOILUT(vois[0])
+                } else if (luts.isNotEmpty()) {
+                    VOILUT(luts[0])
+                } else {
+                    VOILUT(getOptimalVOI(dicomImage, 0, 0, dicomImage.width, dicomImage.height))
+                }
+
+                chain.addTransform(voilutTransform)
             }
             val drawBitmap = DrawBitmap(chain)
             val memory = drawBitmap.getBitmap(dicomImage, drawBitmapType_t.drawBitmapRGBA, 4)
