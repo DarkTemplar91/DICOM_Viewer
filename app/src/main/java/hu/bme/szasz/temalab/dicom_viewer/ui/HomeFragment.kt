@@ -142,8 +142,13 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
 
                     val uri = Uri.parse(dicomPath)
                     if(isFolder){
+                        activity?.runOnUiThread {
+                            binding.progressBar.isVisible = true
+                        }
                         processFolder(uri)
-
+                        activity?.runOnUiThread {
+                            binding.progressBar.isVisible = false
+                        }
                     }
                     else{
                         loadDicomImage(uri)
@@ -174,6 +179,7 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
         })
 
         binding.slider.isVisible = false
+        binding.progressBar.isVisible = false
 
     }
 
