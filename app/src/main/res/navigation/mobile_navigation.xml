@@ -7,7 +7,7 @@
 
     <fragment
         android:id="@+id/nav_home"
-        android:name="hu.bme.szasz.temalab.dicom_viewer.ui.home.HomeFragment"
+        android:name="hu.bme.szasz.temalab.dicom_viewer.ui.HomeFragment"
         android:label="@string/menu_home"
         tools:layout="@layout/fragment_home" >
         <argument
@@ -18,11 +18,21 @@
 
     <fragment
         android:id="@+id/nav_open_file"
-        android:name="hu.bme.szasz.temalab.dicom_viewer.ui.openfile.OpenFileFragment"
+        android:name="hu.bme.szasz.temalab.dicom_viewer.ui.OpenFileFragment"
         android:label="fragment_open_file"
         tools:layout="@layout/fragment_open_file" >
         <action
             android:id="@+id/action_nav_open_file_to_nav_home"
+            app:destination="@id/nav_home" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_open_folder"
+        android:name="hu.bme.szasz.temalab.dicom_viewer.ui.OpenFolderFragment"
+        android:label="fragment_open_file"
+        tools:layout="@layout/fragment_open_file" >
+        <action
+            android:id="@+id/action_nav_open_folder_to_nav_home"
             app:destination="@id/nav_home" />
     </fragment>
 

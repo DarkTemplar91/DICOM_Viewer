@@ -19,7 +19,7 @@
     <string name="drag">Drag</string>
     <string name="rotate">Rotate</string>
     <string name="re_center">Re-Center</string>
-    <string name="open_folder">Open folder...</string>
+    <string name="open_folder">Open folder…</string>
     <string name="recently_opened">Recently Opened:</string>
     <string name="scroll">Scroll</string>
 </resources>

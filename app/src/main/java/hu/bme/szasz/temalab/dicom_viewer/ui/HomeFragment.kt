@@ -1,5 +1,6 @@
-package hu.bme.szasz.temalab.dicom_viewer.ui.home
+package hu.bme.szasz.temalab.dicom_viewer.ui
 
+import android.Manifest.permission.READ_EXTERNAL_STORAGE
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.graphics.Bitmap
@@ -9,16 +10,26 @@ import android.os.Bundle
 import android.view.*
 import android.view.ScaleGestureDetector.SimpleOnScaleGestureListener
 import android.widget.ImageView
+import androidx.core.app.ActivityCompat
+import androidx.core.content.PermissionChecker.PERMISSION_GRANTED
+import androidx.core.content.PermissionChecker.checkSelfPermission
+import androidx.core.view.isVisible
+import androidx.documentfile.provider.DocumentFile
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
+import com.google.android.material.slider.Slider
 import com.imebra.*
 import hu.bme.szasz.temalab.dicom_viewer.R
 import hu.bme.szasz.temalab.dicom_viewer.RotationGestureDetector
 import hu.bme.szasz.temalab.dicom_viewer.databinding.FragmentHomeBinding
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.io.InputStream
 import java.nio.ByteBuffer
+import kotlin.math.roundToInt
 
 
 class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListener{
@@ -31,15 +42,16 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
     private var scaleFactor = 1.0
 
     private val binding get() = _binding!!
-    private var dicomPath : String? = null
     private var actionTypeIsDrag = true
 
     private var imageX : Float = 0.0f
     private var imageY : Float = 0.0f
 
+    private var isFolder: Boolean = false
+
+    private val bitmapList = mutableListOf<Bitmap>()
 
 
-    @SuppressLint("ClickableViewAccessibility")
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -52,12 +64,21 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
         System.loadLibrary("imebra_lib")
 
         imageView = binding.imageView
-        dicomPath = arguments?.getString("uri")
 
-       binding.root.setOnTouchListener { _, p1 ->
-           scaleGestureDetector.onTouchEvent(p1)
-           rotationDetector.onTouchEvent(p1)
-           true
+        return binding.root
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        val dicomPath = arguments?.getString("uri")
+        isFolder = arguments?.getBoolean("folder")!!
+
+        binding.root.setOnTouchListener { _, p1 ->
+            scaleGestureDetector.onTouchEvent(p1)
+            rotationDetector.onTouchEvent(p1)
+            true
         }
 
         binding.orientateButton.setOnClickListener {
@@ -112,17 +133,65 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
 
         })
 
-
-
         if(dicomPath == null){
-            //TODO: Give feedback
+            //Snackbar.make(binding.root,"No file or folder selected to load images from!",Snackbar.LENGTH_LONG).show()
         }
         else{
-            loadDicomImage()
+            lifecycleScope.launch(Dispatchers.Main){
+                withContext(Dispatchers.IO){
+
+                    val uri = Uri.parse(dicomPath)
+                    if(isFolder){
+                        processFolder(uri)
+
+                    }
+                    else{
+                        loadDicomImage(uri)
+                    }
+
+                    activity?.runOnUiThread{
+                        if(bitmapList.size>0){
+                            imageView?.setImageBitmap(bitmapList[0])
+                            imageView?.scaleType = ImageView.ScaleType.FIT_CENTER
+
+                            imageX = imageView?.x!!
+                            imageX = imageView?.x!!
+
+                            binding.slider.valueTo = bitmapList.count().toFloat() - 1f
+                        }
+                        else{
+                            //TODO: Snackbar
+                        }
+                    }
+
+                }
+            }
         }
 
+        binding.slider.addOnChangeListener(Slider.OnChangeListener { slider, _, _ ->
+            imageView?.setImageBitmap(bitmapList[slider.value.toInt()])
+            imageView?.scaleType = ImageView.ScaleType.FIT_CENTER
+        })
 
-        return binding.root
+        binding.slider.isVisible = false
+
+    }
+
+    private fun processFolder(dicomPath: Uri) {
+        val permissionGranted = isReadStoragePermissionGranted()
+        if(!permissionGranted) return
+
+        val documentTree = DocumentFile.fromTreeUri(binding.root.context,dicomPath) ?: return
+        if(!documentTree.isDirectory) return
+
+        for (listFile in documentTree.listFiles()) {
+            loadDicomImage(listFile.uri)
+        }
+
+        activity?.runOnUiThread{
+            binding.slider.isVisible = bitmapList.isNotEmpty()
+        }
+
     }
 
 
@@ -132,18 +201,16 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
     }
 
 
-    private fun loadDicomImage(){
+    private fun loadDicomImage(dicomPath: Uri){
+
+        val stream: InputStream? =
+            binding.root.context.contentResolver?.openInputStream(dicomPath)
 
         try {
-
-            val stream: InputStream? =
-                binding.root.context.contentResolver?.openInputStream(Uri.parse(dicomPath))
-
             val imebraPipe = PipeStream(32000)
 
             GlobalScope.launch{
                 kotlin.runCatching {
-
 
                 val pipeWriter = StreamWriter(imebraPipe.streamOutput)
                 try {
@@ -203,11 +270,7 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
             val byteBuffer: ByteBuffer = ByteBuffer.wrap(memoryByte)
             renderBitmap.copyPixelsFromBuffer(byteBuffer)
 
-            imageView?.setImageBitmap(renderBitmap)
-            imageView?.scaleType = ImageView.ScaleType.FIT_CENTER
-
-            imageX = imageView?.x!!
-            imageX = imageView?.x!!
+            bitmapList.add(renderBitmap)
         }
         catch (e: IOException){
             val dlgAlert: AlertDialog.Builder = AlertDialog.Builder(binding.root.context)
@@ -215,7 +278,6 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
             dlgAlert.setTitle("Error")
             dlgAlert.setPositiveButton("OK"
             ) { _, _ ->
-                //dismiss the dialog
             }
             dlgAlert.setCancelable(true)
             dlgAlert.create().show()
@@ -234,6 +296,16 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
     override fun onRotation(rotationDetector: RotationGestureDetector?) {
         val angle = rotationDetector?.angle
         imageView?.rotation=angle!!
+    }
+
+
+    private fun isReadStoragePermissionGranted(): Boolean {
+        return if (checkSelfPermission(binding.root.context, READ_EXTERNAL_STORAGE) == PERMISSION_GRANTED) {
+            true
+        } else {
+            ActivityCompat.requestPermissions(requireActivity(), arrayOf(READ_EXTERNAL_STORAGE), 1)
+            false
+        }
     }
 
 }

@@ -10,10 +10,5 @@
         android:title="@string/rotate"
         android:id="@+id/rotateButton"
         android:icon="@drawable/ic_rotate" />
-    <item
-        android:title="@string/scroll"
-        android:id="@+id/scrollButton"
-        android:icon="@drawable/ic_scroll"/>
-
 </group>
 </menu>

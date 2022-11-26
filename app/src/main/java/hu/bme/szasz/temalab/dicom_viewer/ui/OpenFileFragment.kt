@@ -1,7 +1,6 @@
-package hu.bme.szasz.temalab.dicom_viewer.ui.openfile
+package hu.bme.szasz.temalab.dicom_viewer.ui
 
 import android.app.Activity
-import android.app.Instrumentation
 import android.content.Intent
 import android.os.Bundle
 import android.provider.DocumentsContract
@@ -11,7 +10,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.navigation.fragment.findNavController
-import com.google.android.material.navigation.NavigationView
 import hu.bme.szasz.temalab.dicom_viewer.R
 import hu.bme.szasz.temalab.dicom_viewer.databinding.FragmentOpenFileBinding
 
@@ -24,7 +22,7 @@ class OpenFileFragment : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
+    ): View {
        _binding = FragmentOpenFileBinding.inflate(inflater,container, false)
 
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
@@ -50,6 +48,7 @@ class OpenFileFragment : Fragment() {
         if (result.resultCode == Activity.RESULT_OK) {
             val bundle = Bundle()
             bundle.putString("uri",result.data?.data?.toString())
+            bundle.putBoolean("folder",false)
 
             findNavController().navigate(R.id.action_nav_open_file_to_nav_home,bundle)
         }
