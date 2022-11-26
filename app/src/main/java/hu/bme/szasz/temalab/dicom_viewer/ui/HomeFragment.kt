@@ -27,12 +27,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.BufferedInputStream
 import java.io.IOException
 import java.io.InputStream
 import java.nio.ByteBuffer
 
 
-class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListener{
+class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListener {
 
     private var _binding: FragmentHomeBinding? = null
     private var imageView: ImageView? = null
@@ -44,14 +45,15 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
     private val binding get() = _binding!!
     private var actionTypeIsDrag = true
 
-    private var imageX : Float = 0.0f
-    private var imageY : Float = 0.0f
+    private var imageX: Float = 0.0f
+    private var imageY: Float = 0.0f
 
     private var isFolder: Boolean = false
 
-    private val bitmapList = mutableListOf<Bitmap>()
-
     private var menu: SubMenu? = null
+
+    private var desciptorMap = LinkedHashMap<String, MutableList<Bitmap>>()
+    private var currentKey: String? = null
 
 
     override fun onCreateView(
@@ -89,13 +91,13 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
         binding.orientateButton.setOnClickListener {
             imageView?.rotation = 0.0f
         }
-        binding.sizeButton.setOnClickListener{
+        binding.sizeButton.setOnClickListener {
             imageView?.scaleX = 1.0f
             imageView?.scaleY = 1.0f
             scaleFactor = 1.0
         }
         binding.centerButton.setOnClickListener {
-            imageView?.x= imageX
+            imageView?.x = imageX
             imageView?.y = imageY
         }
 
@@ -111,7 +113,7 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
             true
         }
 
-        binding.imageView.setOnTouchListener(object: View.OnTouchListener{
+        binding.imageView.setOnTouchListener(object : View.OnTouchListener {
             var downPoint = PointF()
             var startPoint = PointF()
 
@@ -129,7 +131,7 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
                         downPoint.set(p1.x, p1.y)
                         startPoint.set(imageView?.x!!, imageView?.y!!)
                     }
-                    MotionEvent.ACTION_UP->{
+                    MotionEvent.ACTION_UP -> {
                     }
 
                 }
@@ -138,24 +140,25 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
 
         })
 
-        if(dicomPath == null){
+        if (dicomPath == null) {
             //Snackbar.make(binding.root,"No file or folder selected to load images from!",Snackbar.LENGTH_LONG).show()
-        }
-        else{
-            lifecycleScope.launch(Dispatchers.Main){
-                withContext(Dispatchers.IO){
+        } else {
+            lifecycleScope.launch(Dispatchers.Main) {
+                withContext(Dispatchers.IO) {
 
                     val uri = Uri.parse(dicomPath)
-                    if(isFolder){
+                    if (isFolder) {
                         activity?.runOnUiThread {
                             binding.progressBar.isVisible = true
                         }
                         processFolder(uri)
                         activity?.runOnUiThread {
                             binding.progressBar.isVisible = false
+                            binding.backButton.isVisible=true
+                            binding.forwardButton.isVisible=true
+                            binding.backButton.isEnabled = false
                         }
-                    }
-                    else{
+                    } else {
                         loadDicomImage(uri)
                         var result = uri.path
                         val cut: Int = result?.lastIndexOf('/')!!
@@ -164,11 +167,14 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
                         }
                         activity?.runOnUiThread {
                             menu?.add(R.id.nav_view, 123, Menu.NONE, result)
+                            binding.descriptor.text = result
                         }
                     }
 
-                    activity?.runOnUiThread{
-                        if(bitmapList.size>0){
+                    activity?.runOnUiThread {
+                        if (desciptorMap.size > 0) {
+                            val key = desciptorMap.keys.first()
+                            val bitmapList = desciptorMap[key]!!
                             imageView?.setImageBitmap(bitmapList[0])
                             imageView?.scaleType = ImageView.ScaleType.FIT_CENTER
 
@@ -176,8 +182,10 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
                             imageX = imageView?.x!!
 
                             binding.slider.valueTo = bitmapList.count().toFloat() - 1f
-                        }
-                        else{
+                            if(isFolder)
+                                binding.descriptor.text = key
+                            currentKey = key
+                        } else {
                             //TODO: Snackbar
                         }
                     }
@@ -187,28 +195,94 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
         }
 
         binding.slider.addOnChangeListener(Slider.OnChangeListener { slider, _, _ ->
+            val bitmapList = desciptorMap[currentKey]!!
             imageView?.setImageBitmap(bitmapList[slider.value.toInt()])
             imageView?.scaleType = ImageView.ScaleType.FIT_CENTER
         })
 
+        binding.forwardButton.setOnClickListener{
+            val keys = desciptorMap.keys.toList()
+            val newIndex = keys.indexOf(currentKey) + 1
+            if(newIndex < keys.size ){
+                currentKey = desciptorMap.keys.toList()[newIndex]
+                if(newIndex == keys.size-1)
+                    binding.forwardButton.isEnabled = false
+                if(newIndex > 0)
+                    binding.backButton.isEnabled = true
+            }
+            else{
+                return@setOnClickListener
+            }
+            val list = desciptorMap[currentKey]
+            imageView?.setImageBitmap(list?.get(0))
+
+            val newValue = (list?.size?.minus(1f))!!
+            if(newValue>0f){
+                binding.slider.valueTo = newValue
+            }
+
+            binding.descriptor.text = currentKey
+            if(!binding.slider.isVisible && list.size > 1){
+                binding.slider.isVisible = true
+            }
+            else if(list.size < 2){
+                binding.slider.isVisible = false
+            }
+            binding.slider.value = 0.0f
+        }
+
+        binding.backButton.setOnClickListener{
+            val keys = desciptorMap.keys.toList()
+            val newIndex = keys.indexOf(currentKey) - 1
+            if(newIndex >= 0 ){
+                currentKey = desciptorMap.keys.toList()[newIndex]
+                if(newIndex == 0)
+                    binding.backButton.isEnabled = false
+                if(newIndex < keys.size)
+                    binding.forwardButton.isEnabled = true
+            }
+            else{
+                return@setOnClickListener
+            }
+
+            val list = desciptorMap[currentKey]
+            imageView?.setImageBitmap(list?.get(0))
+
+            val newValue = (list?.size?.minus(1f))!!
+            if(newValue>0f){
+                binding.slider.valueTo = newValue
+            }
+
+            binding.descriptor.text = currentKey
+            if(!binding.slider.isVisible && list.size > 1){
+                binding.slider.isVisible = true
+            }
+            else if(list.size < 2){
+                binding.slider.isVisible = false
+            }
+            binding.slider.value = 0.0f
+        }
+
         binding.slider.isVisible = false
         binding.progressBar.isVisible = false
+        binding.backButton.isVisible = false
+        binding.forwardButton.isVisible = false
 
     }
 
     private fun processFolder(dicomPath: Uri) {
         val permissionGranted = isReadStoragePermissionGranted()
-        if(!permissionGranted) return
+        if (!permissionGranted) return
 
-        val documentTree = DocumentFile.fromTreeUri(binding.root.context,dicomPath) ?: return
-        if(!documentTree.isDirectory) return
+        val documentTree = DocumentFile.fromTreeUri(binding.root.context, dicomPath) ?: return
+        if (!documentTree.isDirectory) return
 
         for (listFile in documentTree.listFiles()) {
             loadDicomImage(listFile.uri)
         }
 
-        activity?.runOnUiThread{
-            binding.slider.isVisible = bitmapList.isNotEmpty()
+        activity?.runOnUiThread {
+            binding.slider.isVisible = desciptorMap.isEmpty()
         }
 
     }
@@ -220,47 +294,54 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
     }
 
 
-    private fun loadDicomImage(dicomPath: Uri){
+    private fun loadDicomImage(dicomPath: Uri) {
 
 
+        //DICOM tag, study description.
+        //Used for differentiating between images
+        val tagId = TagId(8, 4158)
 
         try {
             val stream: InputStream? =
                 binding.root.context.contentResolver?.openInputStream(dicomPath)
 
-            if(!isDicomFile(stream))
+            val streamCheck: InputStream? =
+                binding.root.context.contentResolver?.openInputStream(dicomPath)
+            if (!isDicomFile(streamCheck)) {
+                streamCheck?.close()
                 return
+            }
 
             val imebraPipe = PipeStream(32000)
 
-            GlobalScope.launch{
+            GlobalScope.launch {
                 kotlin.runCatching {
 
-                val pipeWriter = StreamWriter(imebraPipe.streamOutput)
-                try {
+                    val pipeWriter = StreamWriter(imebraPipe.streamOutput)
+                    try {
 
-                    // Buffer used to read from the stream
-                    val buffer = ByteArray(128000)
-                    val memory = MutableMemory()
+                        // Buffer used to read from the stream
+                        val buffer = ByteArray(128000)
+                        val memory = MutableMemory()
 
-                    // Read until we reach the end
-                    var readBytes: Int = stream?.read(buffer)!!
-                    while (readBytes >= 0) {
+                        // Read until we reach the end
+                        var readBytes: Int = stream?.read(buffer)!!
+                        while (readBytes >= 0) {
 
 
-                        // Push the data to the Pipe
-                        if (readBytes > 0) {
-                            memory.assign(buffer)
-                            memory.resize(readBytes.toLong())
-                            pipeWriter.write(memory)
+                            // Push the data to the Pipe
+                            if (readBytes > 0) {
+                                memory.assign(buffer)
+                                memory.resize(readBytes.toLong())
+                                pipeWriter.write(memory)
+                            }
+                            readBytes = stream.read(buffer)
                         }
-                        readBytes = stream.read(buffer)
+                    } catch (e: IOException) {
+                    } finally {
+                        pipeWriter.delete()
+                        imebraPipe.close(50000)
                     }
-                } catch (e: IOException) {
-                } finally {
-                    pipeWriter.delete()
-                    imebraPipe.close(50000)
-                }
                 }
             }
 
@@ -294,25 +375,34 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
             val byteBuffer: ByteBuffer = ByteBuffer.wrap(memoryByte)
             renderBitmap.copyPixelsFromBuffer(byteBuffer)
 
-            bitmapList.add(renderBitmap)
-        }
-        catch (e: IOException){
-            val dlgAlert: AlertDialog.Builder = AlertDialog.Builder(binding.root.context)
-            dlgAlert.setMessage(e.message)
-            dlgAlert.setTitle("Error")
-            dlgAlert.setPositiveButton("OK"
-            ) { _, _ ->
+            //Descriptor
+            val studyDescriptor = loadDataSet.getString(tagId, 0)
+            var value = desciptorMap[studyDescriptor]
+            if (value == null) {
+                value = mutableListOf()
+                desciptorMap[studyDescriptor] = value
             }
-            dlgAlert.setCancelable(true)
-            dlgAlert.create().show()
+            value.add(renderBitmap)
+        } catch (e: IOException) {
+            activity?.runOnUiThread {
+                val dlgAlert: AlertDialog.Builder = AlertDialog.Builder(binding.root.context)
+                dlgAlert.setMessage(e.message)
+                dlgAlert.setTitle("Error")
+                dlgAlert.setPositiveButton(
+                    "OK"
+                ) { _, _ ->
+                }
+                dlgAlert.setCancelable(true)
+                dlgAlert.create().show()
+            }
         }
     }
 
     private fun isDicomFile(stream: InputStream?): Boolean {
         //Look for magic bits
-        val array = byteArrayOf(0,0,0,0)
+        val array = byteArrayOf(0, 0, 0, 0)
         stream?.skip(128)
-        stream?.read(array,0,4)
+        stream?.read(array, 0, 4)
         return array.contentEquals(byteArrayOf(68, 73, 67, 77))
     }
 
@@ -327,12 +417,16 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
 
     override fun onRotation(rotationDetector: RotationGestureDetector?) {
         val angle = rotationDetector?.angle
-        imageView?.rotation=angle!!
+        imageView?.rotation = angle!!
     }
 
 
     private fun isReadStoragePermissionGranted(): Boolean {
-        return if (checkSelfPermission(binding.root.context, READ_EXTERNAL_STORAGE) == PERMISSION_GRANTED) {
+        return if (checkSelfPermission(
+                binding.root.context,
+                READ_EXTERNAL_STORAGE
+            ) == PERMISSION_GRANTED
+        ) {
             true
         } else {
             ActivityCompat.requestPermissions(requireActivity(), arrayOf(READ_EXTERNAL_STORAGE), 1)
@@ -340,13 +434,13 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
         }
     }
 
-    private inner class LastOpened(uri: Uri, name: String){
+    private inner class LastOpened(uri: Uri, name: String) {
         val uri: Uri
         val name: String
 
-        init{
-            this.uri=uri
-            this.name=name
+        init {
+            this.uri = uri
+            this.name = name
         }
     }
 
