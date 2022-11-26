@@ -25,9 +25,6 @@
         android:title="@string/recently_opened">
 
         <menu>
-            <item android:title="TODO">
-
-            </item>
         </menu>
 
     </item>

@@ -17,6 +17,7 @@ import androidx.core.view.isVisible
 import androidx.documentfile.provider.DocumentFile
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.navigation.NavigationView
 import com.google.android.material.slider.Slider
 import com.imebra.*
 import hu.bme.szasz.temalab.dicom_viewer.R
@@ -29,7 +30,6 @@ import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.io.InputStream
 import java.nio.ByteBuffer
-import kotlin.math.roundToInt
 
 
 class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListener{
@@ -51,6 +51,8 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
 
     private val bitmapList = mutableListOf<Bitmap>()
 
+    private lateinit var menu: SubMenu
+
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -64,6 +66,10 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
         System.loadLibrary("imebra_lib")
 
         imageView = binding.imageView
+
+
+        val navView = activity?.findViewById<NavigationView>(R.id.nav_view)
+        menu = navView?.menu?.getItem(3)?.subMenu!!
 
         return binding.root
     }
@@ -152,6 +158,14 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
                     }
                     else{
                         loadDicomImage(uri)
+                        var result = uri.path
+                        val cut: Int = result?.lastIndexOf(':')!!
+                        if (cut != -1) {
+                            result = result.substring(cut + 1)
+                        }
+                        activity?.runOnUiThread {
+                            menu.add(R.id.nav_view, 123, Menu.NONE, result)
+                        }
                     }
 
                     activity?.runOnUiThread{
