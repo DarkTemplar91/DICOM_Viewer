@@ -51,7 +51,7 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
 
     private val bitmapList = mutableListOf<Bitmap>()
 
-    private lateinit var menu: SubMenu
+    private var menu: SubMenu? = null
 
 
     override fun onCreateView(
@@ -67,16 +67,15 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
 
         imageView = binding.imageView
 
-
-        val navView = activity?.findViewById<NavigationView>(R.id.nav_view)
-        menu = navView?.menu?.getItem(3)?.subMenu!!
-
         return binding.root
     }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        val navView = activity?.findViewById<NavigationView>(R.id.nav_view)
+        menu = navView?.menu?.getItem(3)?.subMenu
 
         val dicomPath = arguments?.getString("uri")
         isFolder = arguments?.getBoolean("folder")!!
@@ -159,12 +158,12 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
                     else{
                         loadDicomImage(uri)
                         var result = uri.path
-                        val cut: Int = result?.lastIndexOf(':')!!
+                        val cut: Int = result?.lastIndexOf('/')!!
                         if (cut != -1) {
                             result = result.substring(cut + 1)
                         }
                         activity?.runOnUiThread {
-                            menu.add(R.id.nav_view, 123, Menu.NONE, result)
+                            menu?.add(R.id.nav_view, 123, Menu.NONE, result)
                         }
                     }
 
@@ -223,10 +222,15 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
 
     private fun loadDicomImage(dicomPath: Uri){
 
-        val stream: InputStream? =
-            binding.root.context.contentResolver?.openInputStream(dicomPath)
+
 
         try {
+            val stream: InputStream? =
+                binding.root.context.contentResolver?.openInputStream(dicomPath)
+
+            if(!isDicomFile(stream))
+                return
+
             val imebraPipe = PipeStream(32000)
 
             GlobalScope.launch{
@@ -304,6 +308,14 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
         }
     }
 
+    private fun isDicomFile(stream: InputStream?): Boolean {
+        //Look for magic bits
+        val array = byteArrayOf(0,0,0,0)
+        stream?.skip(128)
+        stream?.read(array,0,4)
+        return array.contentEquals(byteArrayOf(68, 73, 67, 77))
+    }
+
     private inner class ScaleListener : SimpleOnScaleGestureListener() {
         override fun onScale(scaleGestureDetector: ScaleGestureDetector): Boolean {
             scaleFactor *= scaleGestureDetector.scaleFactor
@@ -325,6 +337,16 @@ class HomeFragment : Fragment(), RotationGestureDetector.OnRotationGestureListen
         } else {
             ActivityCompat.requestPermissions(requireActivity(), arrayOf(READ_EXTERNAL_STORAGE), 1)
             false
+        }
+    }
+
+    private inner class LastOpened(uri: Uri, name: String){
+        val uri: Uri
+        val name: String
+
+        init{
+            this.uri=uri
+            this.name=name
         }
     }
 
